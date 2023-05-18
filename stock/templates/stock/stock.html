@@ -1,0 +1,126 @@
+{% extends 'stock/base.html' %}
+{% load plotly_dash %}
+
+
+{% block content %}
+<!-- TradingView Widget BEGIN -->
+<!-- TradingView Widget BEGIN -->
+<div class="tradingview-widget-container">
+    <div class="tradingview-widget-container__widget"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
+    {
+    "symbol": "NASDAQ:{{stock_code}}",
+    "width": "100%",
+    "locale": "en",
+    "colorTheme": "light",
+    "isTransparent": true
+  }
+    </script>
+  </div>
+  <!-- TradingView Widget END -->
+
+
+
+
+
+
+
+
+<!-- TradingView Widget BEGIN -->
+<div class="tradingview-widget-container custom-chart-container">
+    <div id="tradingview_4fa82"></div>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">
+    new TradingView.widget(
+    {
+    "autosize": true,
+    "symbol": "NASDAQ:{{stock_code}}",
+    "interval": "D",
+    "timezone": "Etc/UTC",
+    "theme": "light",
+    "style": "1",
+    "locale": "en",
+    "toolbar_bg": "#f1f3f6",
+    "enable_publishing": false,
+    "withdateranges": true,
+    "allow_symbol_change": true,
+    "watchlist": [{% for stock in watchlist %}'{{ stock }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+    "details": true,
+    "show_popup_button": true,
+    "popup_width": "1000",
+    "popup_height": "650",
+    "container_id": "tradingview_4fa82"
+  }
+    );
+    </script>
+  </div>
+
+
+
+<a href='{% url 'balance_sheet' stock_code=stock_code %}'>Balance Sheet</a>
+
+{% if user.is_authenticated %}
+    {% if stock_code not in watchlist %}
+    <form method="POST" action="{% url 'add_to_favorite_stocks' stock_code %}">
+        {% csrf_token %}
+        <input type="submit" value="Add to Favorites">
+    </form>
+    {% else %}
+    <form method="POST" action="{% url 'remove_from_favorite_stocks' stock_code %}">
+        {% csrf_token %}
+        <input type="submit" value="Remove from Favorites">
+    </form>
+    {% endif %}
+{% endif %}
+<style>
+    .custom-chart-container {
+        width: 100%; /* Adjust the width as needed */
+        height: 650px; /* Adjust the height as needed */
+    }
+    
+    #tradingview_4fa82 {
+        width: 100%; /* Adjust the width as needed */
+        height: 100%; /* Adjust the height as needed */
+    }
+</style>
+
+<div id="chart"></div> <!-- This is where the chart will be drawn -->
+
+<script>
+    // Parse the JSON data back into a JavaScript object
+    let data = JSON.parse('{{ historical_stock_json|escapejs }}');
+
+    // Create arrays from the timestamp and close objects
+    let timestamps = Object.values(data['timestamp']).map(t => new Date(t));
+    let closes = Object.values(data['close']);
+
+    let trace = {
+        x: timestamps,
+        y: closes,
+        mode: 'lines',
+        line: {color: 'light blue'}
+    };
+
+    let status = true;
+    if (status == true) {
+        status = '1 Day';
+    } else{
+
+    }
+
+
+    let layout = {
+        title: '{{stock_code}}' + ' (' + status + ')',
+        xaxis: {title: 'Time'},
+        yaxis: {title: 'Close Price'}
+    };
+
+console.log(layout.title);
+
+    // Render the plot
+    Plotly.newPlot('chart', [trace], layout);
+</script>
+
+
+{% endblock content %}
+

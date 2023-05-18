@@ -1,0 +1,10 @@
+{% extends "stock/base.html" %}
+{% block content %}
+{% if user.is_authenticated %}
+<h1>Favorite Stocks</h1>
+{% else %}
+<h1>Popular Stocks</h1>
+
+{% endif %}
+{{ widget_script|safe }}
+{% endblock content %}
