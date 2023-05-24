@@ -56,22 +56,28 @@
   </div>
 
 
-
-<a href='{% url 'balance_sheet' stock_code=stock_code %}'>Balance Sheet</a>
-
-{% if user.is_authenticated %}
-    {% if stock_code not in watchlist %}
-    <form method="POST" action="{% url 'add_to_favorite_stocks' stock_code %}">
-        {% csrf_token %}
-        <input type="submit" value="Add to Favorites">
-    </form>
-    {% else %}
-    <form method="POST" action="{% url 'remove_from_favorite_stocks' stock_code %}">
-        {% csrf_token %}
-        <input type="submit" value="Remove from Favorites">
-    </form>
-    {% endif %}
+  {% if user.is_authenticated %}
+  {% if stock_code not in watchlist %}
+  <form method="POST" action="{% url 'add_to_favorite_stocks' stock_code %}">
+      {% csrf_token %}
+      <input type="submit" value="Add to Favorites">
+  </form>
+  {% else %}
+  <form method="POST" action="{% url 'remove_from_favorite_stocks' stock_code %}">
+      {% csrf_token %}
+      <input type="submit" value="Remove from Favorites">
+  </form>
+  {% endif %}
 {% endif %}
+
+<a style='padding-left: 25vw;' href='{% url 'balance_sheet' stock_code=stock_code %}'>Balance Sheet</a>
+
+<form action="/buy_stock/{{ stock_code }}/" method="post">
+    {% csrf_token %}
+    <input type="number" name="amount" placeholder="Amount to buy" required>
+    <input type="submit" value="Buy">
+</form>
+
 <style>
     .custom-chart-container {
         width: 100%; /* Adjust the width as needed */

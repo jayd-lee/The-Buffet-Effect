@@ -25,22 +25,41 @@
         </style>
     </head>
     <body>
+        {% block pages %}
+        {% endblock pages %}
+        
         <h1>User Portfolio</h1>
         <table>
             <tr>
                 <th>Stock</th>
+                <th>Quantity</th>
+                <th>Bought At</th>
+                <th>Current Price</th>
                 <th>Invested Amount</th>
                 <th>Current Value</th>
+                <th>Gain/Loss ($)</th>
+                <th>Gain/Loss (%)</th>
                 <th>Status</th>
                 <th>Action</th>
             </tr>
             {% for stock in portfolio.stocks.all %}
             <tr>
                 <td>{{ stock.symbol }}</td>
+                <td>{{ stock.quantity }}</td>
+                <td>${{ stock.bought_at }}</td>
+                <td>${{ stock.current_price }}</td>
                 <td>${{ stock.amount_invested }}</td>
                 <td>${{ stock.current_value }}</td>
-                <td class="{% if stock.current_value > stock.amount_invested %}gain{% else %}loss{% endif %}">
-                    {% if stock.current_value > stock.amount_invested %}Gain{% else %}Loss{% endif %}
+                <td>${{ stock.gain_loss }}</td>
+                <td>{{ stock.gain_loss_pct }}%</td>
+                <td class="{% if stock.current_value > stock.amount_invested %}gain{% elif stock.current_value == stock.amount_invested %}-{% else %}loss{% endif %}">
+                    {% if stock.current_value > stock.amount_invested %}
+                        Gain
+                    {% elif stock.current_value == stock.amount_invested %}
+                        -
+                    {% else %}
+                        Loss
+                    {% endif %}
                 </td>
                 <td>
                     <form action="/buy_stock/{{ stock.symbol }}/" method="post">
@@ -55,7 +74,27 @@
                     </form>
                 </td>
             </tr>
+            
             {% endfor %}
+        </table>
+        <br>
+        <table>
+            <tr>
+                <th colspan="6">Total invested</th>
+                <td>${{ portfolio.total_invested }}</td>
+            </tr>
+            <tr>
+                <th colspan="6">Current value</th>
+                <td>${{ portfolio.total_value }}</td>
+            </tr>
+            <tr>
+                <th colspan="6">Average Gain/Loss (%)</th>
+                <td>{{ portfolio.avg_gain_loss_pct }}%</td>
+            </tr>
+            <tr>
+                <th colspan="6">Status</th>
+                <td class="{% if portfolio.status == 'Gain' %}gain{% elif portfolio.status == 'Loss' %}loss{% else %}-{% endif %}">{{ portfolio.status }}</td>
+            </tr>
         </table>
 
 

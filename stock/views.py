@@ -7,6 +7,9 @@ from django_plotly_dash import DjangoDash
 from dash import html, dcc
 from users.models import FavoriteStocks, Portfolio, Stock
 import json
+from django.contrib.auth.decorators import login_required
+from decimal import Decimal
+
 
 def home(request):
     if request.user.is_authenticated:
@@ -444,7 +447,7 @@ def remove_from_favorite_stocks(request, symbol):
 def buy_stock(request, symbol):
     if request.method == 'POST':
         api = tradeapi.REST(API_KEY, SECRET_KEY, base_url='https://paper-api.alpaca.markets')
-        amount = float(request.POST.get('amount'))  # Convert amount to float
+        amount = Decimal(request.POST.get('amount')) 
 
         data = api.get_bars(
             symbol=symbol,
@@ -452,55 +455,88 @@ def buy_stock(request, symbol):
         ).df
 
         # Get the most recent price
-        current_price = data.iloc[-1]['close'] 
-        quantity = amount / current_price
-        
+        current_price = Decimal(data.iloc[-1]['close']) 
+        quantity = Decimal(amount / current_price)
+
         api.submit_order(
             symbol=symbol,
-            qty=quantity,
+            qty=float(quantity),
             side='buy',
             type='market',
             time_in_force='day'
         )
-        stock = Stock.objects.create(symbol=symbol, amount_invested=amount, current_value=quantity*current_price, bought_at=current_price)
-        request.user.portfolio.stocks.add(stock)
+
+        # First try to get the stock
+        try:
+            stock = request.user.portfolio.stocks.get(symbol=symbol)
+        except Stock.DoesNotExist:
+            # If it does not exist, create it
+            stock = Stock.objects.create(symbol=symbol, amount_invested=amount, current_value=quantity*current_price, bought_at=current_price, quantity=quantity)
+            request.user.portfolio.stocks.add(stock)
+        else:
+            # If it exists, update its fields
+            stock.amount_invested += amount
+            stock.current_value += quantity*current_price
+            stock.quantity += quantity
+
+            stock.current_value = stock.quantity * current_price
+
+            stock.save()
+
         return redirect('portfolio')
 
+    
 
 def sell_stock(request, symbol):
     if request.method == 'POST':
         api = tradeapi.REST(API_KEY, SECRET_KEY, base_url)
-        amount = float(request.POST.get('amount'))
+        amount = Decimal(request.POST.get('amount')) 
 
         stock = request.user.portfolio.stocks.get(symbol=symbol)
 
-        # Get historical prices for the stock
         data = api.get_bars(
             symbol=symbol,
             timeframe=TimeFrame.Minute
         ).df
 
         # Get the most recent price
-        current_price = data.iloc[-1]['close']  # Assuming 'close' is a column in your dataframe
+        current_price = Decimal(data.iloc[-1]['close']) 
 
-        quantity = amount / current_price
+        quantity = Decimal(amount / current_price)
+
+        # Check if enough shares are available
+        if quantity > stock.quantity:
+            quantity = stock.quantity
 
         api.submit_order(
             symbol=symbol,
-            qty=quantity,
+            qty=float(quantity),
             side='sell',
             type='market',
             time_in_force='day'
         )
-        if stock.amount_invested > amount:
-            stock.amount_invested -= amount
-            stock.current_value -= quantity*current_price
-            stock.save()
-        else:
-            request.user.portfolio.stocks.remove(stock)
-        return redirect('portfolio')
 
-        
-        
+        stock.amount_invested -= amount
+        stock.current_value -= quantity*current_price
+        stock.quantity -= quantity
+
+        stock.current_value = stock.quantity * current_price
+
+        if stock.quantity <= 0:
+            request.user.portfolio.stocks.remove(stock)
+        else:
+            stock.save()
+
+    return redirect('portfolio')
+
+@login_required
 def portfolio(request):
-    return render(request, 'stock/portfolio.html', {'portfolio': request.user.portfolio})
+    api = tradeapi.REST(API_KEY, SECRET_KEY, base_url)
+    portfolio = request.user.portfolio
+    for stock in portfolio.stocks.all():
+        data = api.get_bars(symbol=stock.symbol, timeframe=TimeFrame.Minute).df
+        stock.current_price = Decimal(data.iloc[-1]['close'])  # Make sure this is Decimal, not float
+        stock.update_current_value()  # Update current value whenever the current price changes
+    return render(request, 'stock/portfolio.html', {'portfolio': portfolio})
+
+
